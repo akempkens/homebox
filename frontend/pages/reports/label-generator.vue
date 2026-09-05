@@ -41,17 +41,17 @@
     assetRange: 1,
     assetRangeMax: 91,
     skipLabels: 0,
-    measure: "in",
+    measure: "mm",
     gapY: 0.25,
     columns: 3,
-    cardHeight: 1,
-    cardWidth: 2.63,
-    pageWidth: 8.5,
-    pageHeight: 11,
-    pageTopPadding: 0.52,
-    pageBottomPadding: 0.42,
-    pageLeftPadding: 0.25,
-    pageRightPadding: 0.1,
+    cardHeight: 42.3,
+    cardWidth: 97.0,
+    pageWidth: 210,
+    pageHeight: 297,
+    pageTopPadding: 20,
+    pageBottomPadding: 20,
+    pageLeftPadding: 7,
+    pageRightPadding: 7,
   });
 
   type LabelOptionInput = {
@@ -313,7 +313,7 @@
   const pages = ref<Page[]>([]);
 
   const out = ref({
-    measure: "in",
+    measure: "mm",
     cols: 0,
     rows: 0,
     gapY: 0,
