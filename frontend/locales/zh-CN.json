@@ -460,7 +460,7 @@
         "follow_dev": "关注开发者",
         "footer": {
             "api_link": "'<a href=\"https://homebox.software/en/api/\" target=\"_blank\">'API接口'</a>'",
-            "version_link": "'<'a href=\"https://github.com/sysadminsmedia/homebox/releases/tag/v{ version }\" target=\"_blank\"'>' 版本号: { version } 构建号: { build } '</a>'"
+            "version_link": "'<'a href=\"https://github.com/akempkens/homebox/releases/tag/v{ version }\" target=\"_blank\"'>' 版本号: { version } 构建号: { build } '</a>'"
         },
         "github": "Github项目",
         "insured": "已投保",
