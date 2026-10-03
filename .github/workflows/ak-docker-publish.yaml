@@ -5,22 +5,17 @@
 # disables scheduled workflows in forks: "disabled_fork"); this file is
 # fork-only, so it never conflicts with upstream syncs.
 #
-#   push tag v*.*.*   -> release, e.g. v0.27.0-ak.1: :0.27.0-ak.1, :latest
-#   push to main      -> edge build: :main, :sha-<short>
-#   pull request      -> build only (catches a broken build before merging)
+# Images are only published when a release tag is pushed, so merging to main
+# never builds one:
+#
+#   push tag v*.*.*   -> release, e.g. v0.27.0-ak.2: :0.27.0-ak.2, :latest, :sha-<short>
+#   pull request      -> build only, nothing published (catches a broken build before merging)
 #   manual run        -> :<branch-name> (Actions tab -> Run workflow)
 name: AK Docker publish
 
 on:
   push:
-    branches: [main]
-    tags: ['v*.*.*'] # path filters below don't apply to tag pushes
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'Dockerfile'
-      - '.dockerignore'
-      - '.github/workflows/ak-docker-publish.yaml'
+    tags: ['v*.*.*']
   pull_request:
     branches: [main]
     paths:
@@ -92,7 +87,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Shown in the app footer. A release tag (v1.2.3) reads as a version;
-          # anything else (main, a branch) has no dot, which the app treats as a
+          # anything else (a manual run on a branch) has no dot, which the app treats as a
           # dev build and skips the "new version available" prompt.
           build-args: |
             VERSION=${{ github.ref_name }}
