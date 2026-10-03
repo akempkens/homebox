@@ -65,6 +65,9 @@ backend/api
 docs/.vitepress/cache/
 .data/
 
+# Local Synology/prod deployment config (contains real secrets)
+prod/
+
 # Playwright
 frontend/test-results/
 frontend/playwright-report/
