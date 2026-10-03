@@ -36,4 +36,7 @@
   "[go]": {
     "editor.defaultFormatter": "golang.go"
   },
+  "chat.extensionUnification.enabled": false,
+  "githubPullRequests.experimental.chat": false,
+  "chat.disableAIFeatures": true,
 }
