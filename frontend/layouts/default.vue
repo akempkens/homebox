@@ -214,16 +214,7 @@
 
           <footer v-if="status" class="bottom-0 w-full pb-4 text-center">
             <p class="text-center text-sm">
-              <span
-                v-html="
-                  DOMPurify.sanitize(
-                    $t('global.footer.version_link', {
-                      version: status.build.version.replace(/^v/, ''),
-                      build: status.build.commit,
-                    })
-                  )
-                "
-              />
+              <span v-html="DOMPurify.sanitize(versionLink)" />
               ~
               <span v-html="DOMPurify.sanitize($t('global.footer.api_link'))" />
             </p>
@@ -319,6 +310,23 @@
     const { data } = await pubApi.status();
 
     return data;
+  });
+
+  // The locale strings hardcode upstream's release URL. This fork publishes its own
+  // releases (e.g. v0.27.0-ak.1), so rewrite the link to point at them; builds
+  // without a release version (e.g. "main") link to their commit instead.
+  const FORK_REPO_URL = "https://github.com/akempkens/homebox";
+  const versionLink = computed(() => {
+    if (!status.value) return "";
+    const { version, commit } = status.value.build;
+    const href = version.includes(".")
+      ? `${FORK_REPO_URL}/releases/tag/${encodeURIComponent(version)}`
+      : `${FORK_REPO_URL}/commit/${encodeURIComponent(commit)}`;
+
+    return t("global.footer.version_link", {
+      version: version.replace(/^v/, ""),
+      build: commit.slice(0, 7),
+    }).replace(/https:\/\/github\.com\/sysadminsmedia\/homebox\/releases\/tag\/[^"]*/, href);
   });
 
   const search = ref("");
