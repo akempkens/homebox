@@ -268,6 +268,8 @@ func New(buildstr string, description string) (*Config, error) {
 		return &cfg, fmt.Errorf("parsing config: %w", err)
 	}
 
+	cfg.Storage = cfg.Storage.withoutRootBucket()
+
 	// Only enforce Meilisearch transport rules when that driver is selected;
 	// the unused default host is otherwise irrelevant.
 	if cfg.Search.Driver == "meilisearch" {
