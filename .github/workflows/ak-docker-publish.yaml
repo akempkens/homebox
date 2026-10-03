@@ -77,9 +77,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
-      - name: Build timestamp
-        id: time
-        run: echo "now=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Build info
+        id: info
+        run: |
+          echo "now=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
@@ -94,8 +96,8 @@ jobs:
           # dev build and skips the "new version available" prompt.
           build-args: |
             VERSION=${{ github.ref_name }}
-            COMMIT=${{ github.sha }}
-            BUILD_TIME=${{ steps.time.outputs.now }}
+            COMMIT=${{ steps.info.outputs.short_sha }}
+            BUILD_TIME=${{ steps.info.outputs.now }}
           # Plain single-platform manifest; provenance attestations turn it into an
           # index with an "unknown/unknown" entry that older Docker builds handle poorly.
           provenance: false
