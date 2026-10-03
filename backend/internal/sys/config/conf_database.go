@@ -1,6 +1,10 @@
 package config
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"path"
+	"strings"
+)
 
 const (
 	DriverSqlite3  = "sqlite3"
@@ -18,6 +22,42 @@ func (s Storage) MarshalJSON() ([]byte, error) {
 	a := alias(s)
 	a.ConnString = redactURLUserinfo(a.ConnString)
 	return json.Marshal(a)
+}
+
+// withoutRootBucket rewrites a file:// bucket rooted at the filesystem root
+// ("file:///" + prefix "data") into an equivalent bucket rooted at the prefix
+// directory ("file:///data" + prefix ""). gocloud.dev/blob/fileblob v0.46.0
+// rejects every key with "escapes bucket root" when the bucket dir is "/",
+// because its containment check compares against dir+"/" ("//"). The on-disk
+// location (/data/<gid>/documents/<hash>) and the keys stored in the database
+// are unchanged, so existing deployments keep working without config edits.
+func (s Storage) withoutRootBucket() Storage {
+	const scheme = "file://"
+	if !strings.HasPrefix(s.ConnString, scheme) {
+		return s
+	}
+
+	rest := strings.TrimPrefix(s.ConnString, scheme)
+	dirPart, query := rest, ""
+	if i := strings.IndexAny(rest, "?#"); i >= 0 {
+		dirPart, query = rest[:i], rest[i:]
+	}
+	if dirPart != "/" {
+		return s
+	}
+
+	prefix := strings.Trim(strings.ReplaceAll(s.PrefixPath, `\`, "/"), "/")
+	if prefix == "" {
+		return s
+	}
+	dir := path.Clean("/" + prefix)
+	if dir == "/" {
+		return s
+	}
+
+	s.ConnString = scheme + dir + query
+	s.PrefixPath = ""
+	return s
 }
 
 type Database struct {
