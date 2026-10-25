@@ -767,15 +767,19 @@ func orderByLocation(gid uuid.UUID, desc bool) entity.OrderOption {
 }
 
 // applyEntityOrder applies the ORDER BY for q.OrderBy / q.OrderDirection and
-// returns the resolved order field name for logging.
+// returns the resolved order field name for logging. When no direction is
+// given, timestamps sort newest first and every other field ascending.
 func applyEntityOrder(qb *ent.EntityQuery, gid uuid.UUID, q EntityQuery) (*ent.EntityQuery, string) {
 	var orderBy string
+	defaultDesc := false
 
 	switch q.OrderBy {
 	case "createdAt":
 		orderBy = entity.FieldCreatedAt
+		defaultDesc = true
 	case "updatedAt":
 		orderBy = entity.FieldUpdatedAt
+		defaultDesc = true
 	case "assetId":
 		orderBy = entity.FieldAssetID
 	case "quantity":
@@ -793,12 +797,11 @@ func applyEntityOrder(qb *ent.EntityQuery, gid uuid.UUID, q EntityQuery) (*ent.E
 		orderBy = entity.FieldName
 	}
 
-	switch q.OrderDirection {
-	case "desc":
+	desc := q.OrderDirection == "desc" || (q.OrderDirection == "" && defaultDesc)
+	if desc {
 		return qb.Order(ent.Desc(orderBy)), orderBy
-	default: // "asc"
-		return qb.Order(ent.Asc(orderBy)), orderBy
 	}
+	return qb.Order(ent.Asc(orderBy)), orderBy
 }
 
 // QueryByGroup returns a list of entities that belong to a specific group based on the provided query.
@@ -3001,6 +3004,7 @@ func (r *EntityRepository) PathForEntity(ctx context.Context, gid, entityID uuid
 		SELECT e.id, e.name, e.entity_children
 		FROM entities e
 		JOIN entity_path ep ON e.id = ep.entity_children
+		WHERE e.group_entities = $2
 	  )
 
 	  SELECT id, name
@@ -3080,6 +3084,7 @@ func (r *EntityRepository) Tree(ctx context.Context, gid uuid.UUID, tq TreeQuery
 			ON     c.entity_children = p.id
 			WHERE  level < 10 -- prevent infinite loop & excessive recursion
 			AND    ct.is_location = true
+			AND    c.group_entities = $1
 		){{ WITH_ITEMS }}
 
 		SELECT   id,
@@ -3115,6 +3120,7 @@ func (r *EntityRepository) Tree(ctx context.Context, gid uuid.UUID, tq TreeQuery
 			FROM    entities e
 			JOIN    entity_types et ON et.id = e.entity_type_entities
 			WHERE   et.is_location = false
+			AND     e.group_entities = $1
 			AND     ` + eff + ` IN (SELECT id FROM entity_tree)
 
 			UNION ALL
@@ -3129,6 +3135,7 @@ func (r *EntityRepository) Tree(ctx context.Context, gid uuid.UUID, tq TreeQuery
 			JOIN    item_tree p
 			ON      ` + effChild + ` = p.id
 			WHERE   ct.is_location = false
+			AND     c.group_entities = $1
 			AND     level < 10 -- prevent infinite loop & excessive recursion
 		)`
 
