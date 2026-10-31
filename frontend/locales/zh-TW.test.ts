@@ -9,8 +9,6 @@ test("label generator tips are valid ICU messages", () => {
     messages.reports.label_generator.tip_2,
     messages.reports.label_generator.tip_3,
   ]) {
-    expect(() =>
-      new IntlMessageFormat(message, "zh-TW").format(),
-    ).not.toThrow();
+    expect(() => new IntlMessageFormat(message, "zh-TW").format()).not.toThrow();
   }
 });
