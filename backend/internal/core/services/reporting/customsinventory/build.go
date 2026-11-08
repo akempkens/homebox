@@ -125,10 +125,10 @@ func Build(in Input) (Report, error) {
 	}
 
 	var entries []*entry
-	r.ScopeIDs = universe(in, byID)
+	r.ScopeIDs = universe(in, byID, ref)
 	for _, sid := range r.ScopeIDs {
 		it, ok := byID[sid]
-		if code, excluded := exclusion(it, ok); excluded {
+		if code, excluded := exclusion(it, ok, ref); excluded {
 			ex := Excluded{ID: sid, Code: code}
 			if ok {
 				ex.AssetID, ex.Name = FormatAssetID(it.AssetID), normalizeName(it.Name)
@@ -224,7 +224,7 @@ func Build(in Input) (Report, error) {
 	return r, Verify(r)
 }
 
-func exclusion(it Item, found bool) (IssueCode, bool) {
+func exclusion(it Item, found bool, ref types.Date) (IssueCode, bool) {
 	switch {
 	case !found:
 		return IssueExcludedNotFound, true
@@ -232,7 +232,7 @@ func exclusion(it Item, found bool) (IssueCode, bool) {
 		return IssueExcludedLocation, true
 	case it.Archived:
 		return IssueExcludedArchived, true
-	case !it.SoldDate.Time().IsZero():
+	case it.SoldBy(ref):
 		return IssueExcludedSold, true
 	default:
 		return "", false

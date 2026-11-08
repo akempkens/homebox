@@ -49,3 +49,28 @@ func TestRequestValidate(t *testing.T) {
 		assert.ErrorIs(t, r.Validate(), ErrInvalidRequest, name)
 	}
 }
+
+func TestItem_SoldBy(t *testing.T) {
+	ref := d("2026-11-15")
+	cases := []struct {
+		name string
+		item Item
+		want bool
+	}{
+		{"neither", Item{}, false},
+		{"date before", Item{SoldDate: d("2026-01-10")}, true},
+		{"date on reference", Item{SoldDate: d("2026-11-15")}, true},
+		{"date after", Item{SoldDate: d("2026-11-16")}, false},
+		{"date before, with price", Item{SoldDate: d("2026-01-10"), SoldPrice: 45.00}, true},
+		{"date after, with price", Item{SoldDate: d("2026-11-16"), SoldPrice: 45.00}, false},
+		{"price only", Item{SoldPrice: 45.00}, true},
+		{"rounds to 0 cents", Item{SoldPrice: 0.004}, false},
+		{"rounds to 1 cent", Item{SoldPrice: 0.005}, true},
+		{"negative", Item{SoldPrice: -5.00}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.item.SoldBy(ref))
+		})
+	}
+}

@@ -168,6 +168,24 @@ func TestBuild_RollUp_SoldContentExcluded(t *testing.T) {
 	assert.Equal(t, int64(3300), lineByName(t, r, "Box books").UnitCents)
 }
 
+func TestBuild_RollUp_SoldByPriceContentExcluded(t *testing.T) {
+	in := containerInput()
+	setItem(&in, bookID, func(it *Item) { it.SoldPrice = 25 })
+	r := mustBuild(t, in)
+	require.Len(t, r.Excluded, 1)
+	assert.Equal(t, bookID, r.Excluded[0].ID)
+	assert.Equal(t, IssueExcludedSold, r.Excluded[0].Code)
+	assert.Equal(t, int64(3300), lineByName(t, r, "Box books").UnitCents)
+}
+
+func TestBuild_RollUp_ContentSoldAfterReferenceRolledIn(t *testing.T) {
+	in := containerInput()
+	setItem(&in, bookID, func(it *Item) { it.SoldDate = d("2026-11-16") })
+	r := mustBuild(t, in)
+	assert.Empty(t, r.Excluded)
+	assert.Equal(t, int64(6300), lineByName(t, r, "Box books").UnitCents)
+}
+
 func TestBuild_RollUp_ContentUnderArchivedIgnored(t *testing.T) {
 	in := containerInput()
 	setItem(&in, pouchID, func(it *Item) { it.Archived = true })
@@ -175,6 +193,17 @@ func TestBuild_RollUp_ContentUnderArchivedIgnored(t *testing.T) {
 	require.Len(t, r.Excluded, 1)
 	assert.Equal(t, pouchID, r.Excluded[0].ID)
 	assert.Equal(t, IssueExcludedArchived, r.Excluded[0].Code)
+	assert.NotContains(t, r.ScopeIDs, penID)
+	assert.Equal(t, int64(5550), lineByName(t, r, "Box books").UnitCents)
+}
+
+func TestBuild_RollUp_ContentUnderSoldByPriceIgnored(t *testing.T) {
+	in := containerInput()
+	setItem(&in, pouchID, func(it *Item) { it.SoldPrice = 1 })
+	r := mustBuild(t, in)
+	require.Len(t, r.Excluded, 1)
+	assert.Equal(t, pouchID, r.Excluded[0].ID)
+	assert.Equal(t, IssueExcludedSold, r.Excluded[0].Code)
 	assert.NotContains(t, r.ScopeIDs, penID)
 	assert.Equal(t, int64(5550), lineByName(t, r, "Box books").UnitCents)
 }

@@ -435,3 +435,38 @@ func TestBuild_MergeFirstWordNeedsMerge(t *testing.T) {
 	in.Options.MergeIdentical = false
 	assert.Len(t, allLines(mustBuild(t, in)), 5)
 }
+
+func excludedCount(r Report, itemID uuid.UUID) int {
+	n := 0
+	for _, ex := range r.Excluded {
+		if ex.ID == itemID {
+			n++
+		}
+	}
+	return n
+}
+
+func TestBuild_ExcludesSoldByPrice(t *testing.T) {
+	in := goldenInput()
+	setItem(&in, id(171), func(it *Item) { it.SoldPrice = 300 })
+	setItem(&in, id(182), func(it *Item) { it.SoldPrice = 80 })
+	r := mustBuild(t, in)
+
+	assert.Equal(t, []string{"Bookshelf", "Tent"}, issueNames(r, IssueExcludedSold))
+	assert.Equal(t, 1, excludedCount(r, id(182)), "date and price together give one excluded entry")
+	assert.Empty(t, issueNames(r, IssuePurchasedAfterReference))
+}
+
+func TestBuild_SoldAfterReferenceListed(t *testing.T) {
+	in := goldenInput()
+	setItem(&in, id(182), func(it *Item) {
+		it.SoldDate = d("2026-11-16")
+		it.SoldPrice = 80
+	})
+	setItem(&in, id(102), func(it *Item) { it.SoldPrice = -20 })
+	r := mustBuild(t, in)
+
+	assert.Empty(t, issueNames(r, IssueExcludedSold))
+	assert.Zero(t, excludedCount(r, id(182)))
+	assert.Zero(t, excludedCount(r, id(102)))
+}

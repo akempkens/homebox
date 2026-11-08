@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 // universe returns the scope IDs, deduplicated and in order. With
 // RollUpContents on, it appends, in item order, every item outside the scope
 // whose parent is an included item that is in scope or is itself content
 // (FR-28). An excluded item is listed, but nothing below it is.
-func universe(in Input, byID map[uuid.UUID]Item) []uuid.UUID {
+func universe(in Input, byID map[uuid.UUID]Item, ref types.Date) []uuid.UUID {
 	ids := make([]uuid.UUID, 0, len(in.ScopeIDs))
 	listed := make(map[uuid.UUID]bool, len(in.ScopeIDs))
 	for _, id := range in.ScopeIDs {
@@ -32,7 +33,7 @@ func universe(in Input, byID map[uuid.UUID]Item) []uuid.UUID {
 	var holds func(id uuid.UUID) bool
 	holds = func(id uuid.UUID) bool {
 		it, ok := byID[id]
-		if _, excluded := exclusion(it, ok); excluded {
+		if _, excluded := exclusion(it, ok, ref); excluded {
 			return false
 		}
 		if scope[id] {

@@ -271,6 +271,7 @@ type Item struct {
 	IsLocation     bool
 	Archived       bool
 	SoldDate       types.Date
+	SoldPrice      float64
 	Quantity       float64
 	PurchasePrice  float64 // per piece
 	PurchaseDate   types.Date
@@ -278,6 +279,17 @@ type Item struct {
 	LocationPath   []string // root first; empty = no location
 	TagIDs         []uuid.UUID
 	Attachments    []Attachment
+}
+
+// SoldBy reports whether the item counts as sold on the reference date
+// (FR-43). A sold date counts when it's on or before ref, whatever the sold
+// price. Without a sold date, a sold price above 0 after rounding to cents
+// counts.
+func (it Item) SoldBy(ref types.Date) bool {
+	if sold := it.SoldDate.Time(); !sold.IsZero() {
+		return !sold.After(ref.Time())
+	}
+	return ToCents(it.SoldPrice) > 0
 }
 
 type Input struct {
