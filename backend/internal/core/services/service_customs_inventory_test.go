@@ -381,3 +381,72 @@ func TestCustomsInventory_RollUpOffByDefault(t *testing.T) {
 	require.NotNil(t, missing)
 	assert.Equal(t, "Moving box", missing.Items[0].Name)
 }
+
+func issueNamesByCode(p customsinventory.Preview, code customsinventory.IssueCode) []string {
+	is := issueByCode(p, code)
+	if is == nil {
+		return nil
+	}
+	names := make([]string, len(is.Items))
+	for i, it := range is.Items {
+		names[i] = it.Name
+	}
+	return names
+}
+
+func TestCustomsInventory_SoldPriceExcluded(t *testing.T) {
+	f := newCustomsFixture(t)
+	_, err := tClient.Entity.UpdateOneID(f.lamp).SetSoldPrice(15.00).Save(f.ctx)
+	require.NoError(t, err)
+
+	p, err := customsService().Preview(f.ctx, f.request(f.clock, f.chairs, f.espresso, f.lamp))
+	require.NoError(t, err)
+	assert.Equal(t, 3, p.LineCount)
+	assert.Equal(t, []string{"Old lamp"}, issueNamesByCode(p, customsinventory.IssueExcludedSold))
+}
+
+func TestCustomsInventory_SoldToWithoutPrice(t *testing.T) {
+	f := newCustomsFixture(t)
+	_, err := tClient.Entity.UpdateOneID(f.lamp).SetSoldTo("Jane Doe").Save(f.ctx)
+	require.NoError(t, err)
+
+	p, err := customsService().Preview(f.ctx, f.request(f.clock, f.chairs, f.espresso, f.lamp))
+	require.NoError(t, err)
+	assert.Equal(t, 4, p.LineCount)
+	assert.Equal(t, []string{"Old lamp"}, issueNamesByCode(p, customsinventory.IssueSoldToWithoutPrice))
+}
+
+func TestCustomsInventory_RollUpSkipsSoldByPrice(t *testing.T) {
+	f := newCustomsFixture(t)
+	b := withBox(t, f)
+	_, err := tClient.Entity.UpdateOneID(b.pouch).SetSoldPrice(1.00).Save(f.ctx)
+	require.NoError(t, err)
+
+	req := f.request(b.box)
+	req.Options.RollUpContents = true
+	svc := customsService()
+	svc.maxScope = 3 // box, book, pouch: the pen must not be loaded
+	p, err := svc.Preview(f.ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, 1, p.ContentCount)
+	assert.Equal(t, int64(3000), p.GrandTotalCents)
+	assert.Equal(t, []string{"Pouch"}, issueNamesByCode(p, customsinventory.IssueExcludedSold))
+}
+
+func TestCustomsInventory_RollUpBelowSoldAfterReference(t *testing.T) {
+	f := newCustomsFixture(t)
+	b := withBox(t, f)
+	_, err := tClient.Entity.UpdateOneID(b.pouch).
+		SetSoldDate(time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)).
+		SetSoldPrice(1.00).
+		Save(f.ctx)
+	require.NoError(t, err)
+
+	req := f.request(b.box)
+	req.Options.RollUpContents = true
+	p, err := customsService().Preview(f.ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, 3, p.ContentCount)
+	assert.Equal(t, int64(3450), p.GrandTotalCents)
+	assert.Nil(t, issueByCode(p, customsinventory.IssueExcludedSold))
+}

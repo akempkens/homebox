@@ -15,6 +15,7 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services/reporting/customsinventory"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 const (
@@ -169,6 +170,10 @@ func (s *CustomsInventoryService) buildInput(ctx context.Context, gid uuid.UUID,
 	if len(ids) > s.limit() {
 		return customsinventory.Input{}, nil, fmt.Errorf("%w: %d entities, at most %d", customsinventory.ErrScopeTooLarge, len(ids), s.limit())
 	}
+	ref, err := customsinventory.ParseDate(req.Options.ReferenceDate)
+	if err != nil {
+		return customsinventory.Input{}, nil, fmt.Errorf("%w: reference date must be YYYY-MM-DD", customsinventory.ErrInvalidRequest)
+	}
 
 	in := customsinventory.Input{
 		Options:     req.Options,
@@ -188,12 +193,12 @@ func (s *CustomsInventoryService) buildInput(ctx context.Context, gid uuid.UUID,
 		if err != nil {
 			return customsinventory.Input{}, nil, err
 		}
-		if !it.IsLocation && descends(it) {
+		if !it.IsLocation && descends(it, ref) {
 			frontier = append(frontier, it.ID)
 		}
 	}
 	if req.Options.RollUpContents {
-		if err := s.loadContents(ctx, gid, frontier, &in, paths, locationPaths, s.limit()); err != nil {
+		if err := s.loadContents(ctx, gid, frontier, ref, &in, paths, locationPaths, s.limit()); err != nil {
 			return customsinventory.Input{}, nil, err
 		}
 	}
@@ -248,15 +253,15 @@ func (s *CustomsInventoryService) loadItem(ctx context.Context, gid, id uuid.UUI
 }
 
 // descends reports whether the contents of an item are loaded: never below
-// an archived or sold entity (FR-28).
-func descends(it customsinventory.Item) bool {
-	return !it.Archived && it.SoldDate.Time().IsZero()
+// an archived entity or one sold by the reference date (FR-28, FR-43).
+func descends(it customsinventory.Item, ref types.Date) bool {
+	return !it.Archived && !it.SoldBy(ref)
 }
 
 // loadContents loads the descendants of the frontier, level by level,
 // through item children only (FR-28). Archived children aren't loaded, as in
 // the search. Scope and contents together may hold at most budget entities.
-func (s *CustomsInventoryService) loadContents(ctx context.Context, gid uuid.UUID, frontier []uuid.UUID, in *customsinventory.Input, paths map[uuid.UUID]string, locationPaths map[uuid.UUID][]string, budget int) error {
+func (s *CustomsInventoryService) loadContents(ctx context.Context, gid uuid.UUID, frontier []uuid.UUID, ref types.Date, in *customsinventory.Input, paths map[uuid.UUID]string, locationPaths map[uuid.UUID][]string, budget int) error {
 	loaded := make(map[uuid.UUID]bool, len(in.ScopeIDs))
 	for _, id := range in.ScopeIDs {
 		loaded[id] = true
@@ -283,7 +288,7 @@ func (s *CustomsInventoryService) loadContents(ctx context.Context, gid uuid.UUI
 				return err
 			}
 			contents++
-			if descends(it) {
+			if descends(it, ref) {
 				next = append(next, it.ID)
 			}
 		}
@@ -351,6 +356,8 @@ func toCustomsItem(e repo.EntityOut, locationPath []string) customsinventory.Ite
 		Name:          e.Name,
 		Archived:      e.Archived,
 		SoldDate:      e.SoldDate,
+		SoldPrice:     e.SoldPrice,
+		SoldTo:        e.SoldTo,
 		Quantity:      e.Quantity,
 		PurchasePrice: e.PurchasePrice,
 		PurchaseDate:  e.PurchaseDate,
