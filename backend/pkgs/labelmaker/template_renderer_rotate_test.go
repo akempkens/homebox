@@ -90,7 +90,7 @@ func TestRotatedTextRejectsOversizedBuffers(t *testing.T) {
 		CanvasData: map[string]interface{}{
 			"objects": []interface{}{
 				canvasObject("textbox", 0, 0, 100000, 3000, map[string]interface{}{
-					"text": "HUGE", "fontSize": 2000.0, "fill": "#000000", "angle": 45.0, "textAlign": alignCenter,
+					"text": "HUGE", frameKeyFont: 2000.0, "fill": "#000000", "angle": 45.0, "textAlign": alignCenter,
 				}),
 			},
 		},

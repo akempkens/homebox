@@ -1023,7 +1023,7 @@ export interface DuplicateOptions {
 export interface EntityCreate {
   /** @maxLength 1000 */
   description: string;
-  entityTypeId: string;
+  entityTypeId?: string | null;
   /** Only needed when ParentID is another item and this lives elsewhere (#1688). */
   locationId?: string | null;
   /** @maxLength 255 */
@@ -1295,7 +1295,7 @@ export interface EntityUpdate {
   assetId: string;
   /** @maxLength 1000 */
   description: string;
-  entityTypeId: string;
+  entityTypeId?: string | null;
   fields: EntityFieldData[];
   id: string;
   insured: boolean;
@@ -1640,12 +1640,12 @@ export interface TagUpdate {
 }
 
 export interface TemplateField {
-  booleanValue: boolean;
+  booleanValue?: boolean | null;
   id: string;
   name: string;
-  numberValue: number;
+  numberValue?: number | null;
   textValue: string;
-  timeValue: string;
+  timeValue?: string | null;
   type: string;
 }
 

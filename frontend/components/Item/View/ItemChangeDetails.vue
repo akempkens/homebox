@@ -59,9 +59,11 @@
       enabled.removeTags = params.removeTags ?? false;
 
       if (params.changeLocation && params.items.length > 0) {
-        // if all parents are the same then set the current location to said parent
-        if (params.items[0]!.parent && params.items.every(item => item.parent?.id === params.items[0]!.parent?.id)) {
-          newLocation.value = params.items[0]!.parent;
+        // Preselect the shared parent, but only when it's a location: items can
+        // also sit inside another item, which the location picker doesn't offer.
+        const parent = params.items[0]!.parent;
+        if (parent?.entityType?.isLocation && params.items.every(item => item.parent?.id === parent.id)) {
+          newLocation.value = parent;
         }
       }
 
