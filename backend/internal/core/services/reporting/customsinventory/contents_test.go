@@ -304,3 +304,12 @@ func TestBuild_NoInheritanceWhenRollUpOff(t *testing.T) {
 	assert.Equal(t, StatusDutiable, book.Status)
 	assert.Equal(t, []string{"Book"}, issueNames(r, IssueMissingPurchaseDate))
 }
+
+func TestBuild_RollUp_SoldToWithoutPriceContent(t *testing.T) {
+	in := containerInput()
+	setItem(&in, bookID, func(it *Item) { it.SoldTo = "Jane Doe" })
+	r := mustBuild(t, in)
+	assert.Equal(t, []string{"Book"}, issueNames(r, IssueSoldToWithoutPrice))
+	assert.Empty(t, r.Excluded)
+	assert.Equal(t, int64(6300), lineByName(t, r, "Box books").UnitCents)
+}

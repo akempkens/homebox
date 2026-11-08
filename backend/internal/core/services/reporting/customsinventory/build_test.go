@@ -259,11 +259,11 @@ func TestBuild_Issues(t *testing.T) {
 	}
 	var want []IssueCode
 	for _, c := range IssueOrder {
-		if !slices.Contains([]IssueCode{IssueNegativeValue, IssueZeroQuantity, IssueContentSplit, IssueContainerQuantity}, c) {
+		if !slices.Contains([]IssueCode{IssueNegativeValue, IssueZeroQuantity, IssueContentSplit, IssueContainerQuantity, IssueSoldToWithoutPrice}, c) {
 			want = append(want, c)
 		}
 	}
-	assert.Equal(t, want, codes, "every code except negative_value, zero_quantity and the rollup codes, in order")
+	assert.Equal(t, want, codes, "every code except negative_value, zero_quantity, the rollup codes and sold_to_without_price, in order")
 
 	assert.Equal(t, []string{"Office chair"}, issueNames(r, IssueMissingPurchaseDate))
 	assert.Equal(t, []string{nameEspresso}, issueNames(r, IssueConflictDateTag))
@@ -469,4 +469,45 @@ func TestBuild_SoldAfterReferenceListed(t *testing.T) {
 	assert.Empty(t, issueNames(r, IssueExcludedSold))
 	assert.Zero(t, excludedCount(r, id(182)))
 	assert.Zero(t, excludedCount(r, id(102)))
+}
+
+func TestBuild_SoldToWithoutPrice(t *testing.T) {
+	in := goldenInput()
+	sale := func(soldTo string, price float64) func(*Item) {
+		return func(it *Item) {
+			it.SoldTo = soldTo
+			it.SoldPrice = price
+		}
+	}
+	setItem(&in, id(102), sale("Jane Doe", 0))     // Sofa: still on a line
+	setItem(&in, id(110), sale("Jane Doe", 0.004)) // Shelf: rounds to 0 cents
+	setItem(&in, id(103), sale("Jane Doe", -5.00)) // Dining chair: negative
+	setItem(&in, id(182), sale("Jane Doe", 0))     // Bookshelf: left out by its sold date
+	setItem(&in, id(171), sale("Jane Doe", 300))   // Tent: sold by price
+	setItem(&in, id(101), sale("   ", 0))          // Grandfather clock: spaces only
+	setItem(&in, id(181), sale("Jane Doe", 0))     // Old radio: archived
+	r := mustBuild(t, in)
+
+	assert.Equal(t, []string{"Bookshelf", "Dining chair", "Shelf", "Sofa"}, issueNames(r, IssueSoldToWithoutPrice))
+	var found bool
+	for _, is := range r.Issues {
+		if is.Code != IssueSoldToWithoutPrice {
+			continue
+		}
+		found = true
+		assert.Equal(t, SeverityWarning, is.Severity)
+		for _, it := range is.Items {
+			assert.Empty(t, it.Detail, it.Name)
+		}
+	}
+	assert.True(t, found)
+	for _, n := range []int{102, 103, 110} {
+		assert.Zero(t, excludedCount(r, id(n)), n)
+	}
+
+	pos := slices.Index(IssueOrder, IssueSoldToWithoutPrice)
+	require.Equal(t, slices.Index(IssueOrder, IssueContentSplit)+1, pos)
+	for _, c := range IssueOrder[pos+1:] {
+		assert.Equal(t, SeverityInfo, SeverityOf(c), c)
+	}
 }

@@ -78,6 +78,7 @@ const (
 	IssueDutiableWithoutReceipt  IssueCode = "dutiable_without_receipt"
 	IssueReceiptIsLink           IssueCode = "receipt_is_link"
 	IssueContentSplit            IssueCode = "content_split"
+	IssueSoldToWithoutPrice      IssueCode = "sold_to_without_price"
 	IssueContainerQuantity       IssueCode = "container_quantity"
 	IssueExcludedLocation        IssueCode = "excluded_location"
 	IssueExcludedArchived        IssueCode = "excluded_archived"
@@ -99,6 +100,7 @@ var IssueOrder = []IssueCode{
 	IssueDutiableWithoutReceipt,
 	IssueReceiptIsLink,
 	IssueContentSplit,
+	IssueSoldToWithoutPrice,
 	IssueContainerQuantity,
 	IssueExcludedLocation,
 	IssueExcludedArchived,
@@ -272,6 +274,7 @@ type Item struct {
 	Archived       bool
 	SoldDate       types.Date
 	SoldPrice      float64
+	SoldTo         string
 	Quantity       float64
 	PurchasePrice  float64 // per piece
 	PurchaseDate   types.Date
