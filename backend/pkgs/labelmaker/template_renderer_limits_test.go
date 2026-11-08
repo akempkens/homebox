@@ -125,7 +125,7 @@ func TestRenderRotatedTextFrameWithBadWidthIsBounded(t *testing.T) {
 	frame := func(data map[string]interface{}) map[string]interface{} {
 		d := mergeMaps(map[string]interface{}{"wrap": true}, data)
 		return map[string]interface{}{
-			"text": "frame", "fontSize": 12.0, "fill": black, "angle": 90.0,
+			"text": "frame", frameKeyFont: 12.0, "fill": black, "angle": 90.0,
 			keyOriginX: topLeft, keyOriginY: "top", "data": d,
 		}
 	}
