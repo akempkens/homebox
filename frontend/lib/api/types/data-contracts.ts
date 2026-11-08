@@ -93,6 +93,7 @@ export enum CustomsInventoryIssueCode {
   IssueDutiableWithoutReceipt = "dutiable_without_receipt",
   IssueReceiptIsLink = "receipt_is_link",
   IssueContentSplit = "content_split",
+  IssueSoldToWithoutPrice = "sold_to_without_price",
   IssueContainerQuantity = "container_quantity",
   IssueExcludedLocation = "excluded_location",
   IssueExcludedArchived = "excluded_archived",

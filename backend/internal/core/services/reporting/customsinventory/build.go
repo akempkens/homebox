@@ -125,16 +125,16 @@ func Build(in Input) (Report, error) {
 	}
 
 	var entries []*entry
-	r.ScopeIDs = universe(in, byID)
+	r.ScopeIDs = universe(in, byID, ref)
 	for _, sid := range r.ScopeIDs {
 		it, ok := byID[sid]
-		if code, excluded := exclusion(it, ok); excluded {
+		if code, excluded := exclusion(it, ok, ref); excluded {
 			ex := Excluded{ID: sid, Code: code}
 			if ok {
 				ex.AssetID, ex.Name = FormatAssetID(it.AssetID), normalizeName(it.Name)
 			}
 			r.Excluded = append(r.Excluded, ex)
-			issues.add(code, IssueItem{ID: ex.ID, AssetID: ex.AssetID, Name: ex.Name})
+			addExcludedIssues(issues, code, it, IssueItem{ID: ex.ID, AssetID: ex.AssetID, Name: ex.Name})
 			continue
 		}
 		entries = append(entries, newEntry(it, receiptTypes))
@@ -224,7 +224,7 @@ func Build(in Input) (Report, error) {
 	return r, Verify(r)
 }
 
-func exclusion(it Item, found bool) (IssueCode, bool) {
+func exclusion(it Item, found bool, ref types.Date) (IssueCode, bool) {
 	switch {
 	case !found:
 		return IssueExcludedNotFound, true
@@ -232,7 +232,7 @@ func exclusion(it Item, found bool) (IssueCode, bool) {
 		return IssueExcludedLocation, true
 	case it.Archived:
 		return IssueExcludedArchived, true
-	case !it.SoldDate.Time().IsZero():
+	case it.SoldBy(ref):
 		return IssueExcludedSold, true
 	default:
 		return "", false
@@ -304,6 +304,21 @@ func assignReceiptNames(entries []*entry, include bool) {
 	}
 }
 
+// soldToWithoutPrice reports whether "sold to" is filled in while the sold
+// price doesn't count: it rounds to 0 cents or is negative (FR-46).
+func soldToWithoutPrice(it Item) bool {
+	return strings.TrimSpace(it.SoldTo) != "" && ToCents(it.SoldPrice) <= 0
+}
+
+// addExcludedIssues adds the info issue for an excluded entity. An entity left
+// out as sold also gets sold_to_without_price when it applies (FR-46).
+func addExcludedIssues(issues *issueSet, code IssueCode, it Item, item IssueItem) {
+	issues.add(code, item)
+	if code == IssueExcludedSold && soldToWithoutPrice(it) {
+		issues.add(IssueSoldToWithoutPrice, item)
+	}
+}
+
 // itemIssues adds the per-item warnings (FR-11). Excluded entities never get here.
 func itemIssues(entries []*entry, issues *issueSet, include bool) {
 	assetCount := map[int64]int{}
@@ -323,6 +338,9 @@ func itemIssues(entries []*entry, issues *issueSet, include bool) {
 		}
 		if e.unitCents == 0 && (len(e.contents) == 0 || e.lineUnitCents == 0) {
 			issues.add(IssueMissingPrice, ref)
+		}
+		if soldToWithoutPrice(e.it) {
+			issues.add(IssueSoldToWithoutPrice, ref)
 		}
 		if e.unitCents < 0 || e.it.Quantity < 0 {
 			issues.add(IssueNegativeValue, ref)

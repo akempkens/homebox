@@ -97,6 +97,7 @@ definitions:
     - dutiable_without_receipt
     - receipt_is_link
     - content_split
+    - sold_to_without_price
     - container_quantity
     - excluded_location
     - excluded_archived
@@ -116,6 +117,7 @@ definitions:
     - IssueDutiableWithoutReceipt
     - IssueReceiptIsLink
     - IssueContentSplit
+    - IssueSoldToWithoutPrice
     - IssueContainerQuantity
     - IssueExcludedLocation
     - IssueExcludedArchived
