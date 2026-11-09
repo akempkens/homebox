@@ -86,11 +86,43 @@ func TestBuild_MergeIdentical(t *testing.T) {
 		want = append(want, FormatAssetID(n))
 	}
 	assert.Equal(t, want, merged.AssetIDs)
-	assert.Equal(t, []string{"zollfrei lt. Tag „owned > 2 years“; Wert fehlt"}, merged.Comments)
+	assert.Equal(t, []string{"zollfrei lt. Tag „owned > 2 years“; Wert fehlt"}, merged.ProcessComments)
 
 	assert.Equal(t, []string{"000-145"}, files[1].AssetIDs)
 	assert.Equal(t, int64(500), files[1].UnitCents)
 	assert.True(t, files[1].HasPrice)
+}
+
+func TestBuild_MergeIdentical_Descriptions(t *testing.T) {
+	in := goldenInput()
+	setItem(&in, id(131), func(it *Item) { it.Description = "Tax 2019" })
+	setItem(&in, id(133), func(it *Item) { it.Description = "Tax  2019" })
+	setItem(&in, id(135), func(it *Item) { it.Description = "Tax 2020\n**box 2**" })
+	r := mustBuild(t, in)
+
+	var files []Line
+	for _, l := range allLines(r) {
+		if l.Name == nameFiles {
+			files = append(files, l)
+		}
+	}
+	require.Len(t, files, 2)
+	merged := files[0]
+	require.Len(t, merged.MemberIDs, 14)
+	assert.Equal(t, []string{"Tax 2019", "Tax 2020\n**box 2**"}, merged.Descriptions, "markup is kept; the sheet writer formats it")
+	assert.Equal(t, []string{"zollfrei lt. Tag „owned > 2 years“; Wert fehlt"}, merged.ProcessComments)
+}
+
+func TestBuild_Descriptions(t *testing.T) {
+	in := goldenInput()
+	setItem(&in, id(101), func(it *Item) { it.Description = "  Oak case,\r\n\n\t made   1890 " })
+	setItem(&in, id(102), func(it *Item) { it.Description = " \r\n\t " })
+	r := mustBuild(t, in)
+
+	clock := lineByName(t, r, "Grandfather clock")
+	assert.Equal(t, []string{"Oak case,\nmade 1890"}, clock.Descriptions)
+	assert.Empty(t, clock.ProcessComments, "duty-free by date, has a price")
+	assert.Empty(t, lineByName(t, r, "Sofa").Descriptions)
 }
 
 func TestBuild_MergeOffKeepsLines(t *testing.T) {
@@ -199,11 +231,11 @@ func TestBuild_DutiableSection(t *testing.T) {
 	assert.Equal(t, []string{"Bicycle", "Tent", nameEspresso, "Desk lamp", "Floor lamp", "Office chair"}, names)
 
 	espresso := lineByName(t, r, nameEspresso)
-	assert.Equal(t, []string{"Kauf nach Stichtag (< 6 Monate)"}, espresso.Comments)
+	assert.Equal(t, []string{"Kauf nach Stichtag (< 6 Monate)"}, espresso.ProcessComments)
 	assert.Equal(t, []string{"Home › Kitchen"}, espresso.Locations)
-	assert.Equal(t, []string{"Kaufdatum fehlt; Wert fehlt"}, lineByName(t, r, "Office chair").Comments)
-	assert.Equal(t, []string{"zu verzollen lt. Tag „dutiable“; Wert fehlt"}, lineByName(t, r, "Bicycle").Comments)
-	assert.Equal(t, []string{"Kauf nach Referenzdatum; Wert fehlt"}, lineByName(t, r, "Tent").Comments)
+	assert.Equal(t, []string{"Kaufdatum fehlt; Wert fehlt"}, lineByName(t, r, "Office chair").ProcessComments)
+	assert.Equal(t, []string{"zu verzollen lt. Tag „dutiable“; Wert fehlt"}, lineByName(t, r, "Bicycle").ProcessComments)
+	assert.Equal(t, []string{"Kauf nach Referenzdatum; Wert fehlt"}, lineByName(t, r, "Tent").ProcessComments)
 }
 
 func TestBuild_MinMonthsChangesCutoff(t *testing.T) {

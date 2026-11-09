@@ -118,7 +118,7 @@ func (w *sheetWriter) line(l Line) int {
 		unit,
 		w.money(l.LineCents, fmt.Sprintf("ROUND(B%d*H%d,2)", r, r), false),
 		text(strings.Join(l.ReceiptNames, ", ")),
-		text(strings.Join(l.Comments, "; ")),
+		text(strings.Join(l.ProcessComments, "; ")),
 	)
 }
 

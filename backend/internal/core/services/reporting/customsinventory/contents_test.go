@@ -34,7 +34,7 @@ func containerInput() Input {
 }
 
 func hasComment(l Line, s string) bool {
-	return slices.ContainsFunc(l.Comments, func(c string) bool { return strings.Contains(c, s) })
+	return slices.ContainsFunc(l.ProcessComments, func(c string) bool { return strings.Contains(c, s) })
 }
 
 func TestBuild_RollUp_ListsOnlyTopContainer(t *testing.T) {
@@ -48,7 +48,7 @@ func TestBuild_RollUp_ListsOnlyTopContainer(t *testing.T) {
 	assert.True(t, l.HasPrice)
 	assert.Equal(t, 5, r.ItemCount)
 	assert.Equal(t, 4, r.Preview().ContentCount)
-	assert.Contains(t, l.Comments, "inkl. Inhalt (7 Stk.)")
+	assert.Contains(t, l.ProcessComments, "inkl. Inhalt (7 Stk.)")
 	assert.ElementsMatch(t, []uuid.UUID{boxID, bookID, vaseID, pouchID, penID}, r.ScopeIDs)
 	assert.Equal(t, []int64{0}, l.MemberOwnCents)
 }
@@ -312,4 +312,16 @@ func TestBuild_RollUp_SoldToWithoutPriceContent(t *testing.T) {
 	assert.Equal(t, []string{"Book"}, issueNames(r, IssueSoldToWithoutPrice))
 	assert.Empty(t, r.Excluded)
 	assert.Equal(t, int64(6300), lineByName(t, r, "Box books").UnitCents)
+}
+
+func TestBuild_RollUp_ContentDescriptionsNotRolledIn(t *testing.T) {
+	in := containerInput()
+	setItem(&in, boxID, func(it *Item) { it.Description = "Moving box 3" })
+	setItem(&in, bookID, func(it *Item) { it.Description = "Paperbacks" })
+	setItem(&in, penID, func(it *Item) { it.Description = "Blue ink" })
+
+	lines := allLines(mustBuild(t, in))
+	require.Len(t, lines, 1)
+	assert.Equal(t, []string{"Moving box 3"}, lines[0].Descriptions)
+	assert.Contains(t, lines[0].ProcessComments, "inkl. Inhalt (7 Stk.)")
 }
