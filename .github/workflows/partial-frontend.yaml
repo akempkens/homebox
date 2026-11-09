@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 10
 
@@ -62,18 +62,18 @@ jobs:
       - name: Install Task
         id: install-task
         continue-on-error: true
-        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Task (retry)
         if: steps.install-task.outcome == 'failure'
-        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.27"
           cache-dependency-path: backend/go.mod
@@ -82,7 +82,7 @@ jobs:
         with:
           node-version: lts/*
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 10
 
@@ -122,18 +122,18 @@ jobs:
       - name: Install Task
         id: install-task
         continue-on-error: true
-        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Task (retry)
         if: steps.install-task.outcome == 'failure'
-        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.27"
           cache-dependency-path: backend/go.mod
@@ -142,7 +142,7 @@ jobs:
         with:
           node-version: lts/*
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 10
 
