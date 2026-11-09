@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"slices"
@@ -276,6 +277,53 @@ func TestCustomsInventory_ExportXLSXOnly(t *testing.T) {
 	title, err := x.GetCellValue(customsinventory.SheetName, "A1")
 	require.NoError(t, err)
 	assert.Equal(t, "Shipment A", title)
+}
+
+func TestCustomsInventory_ExportDescriptionColumns(t *testing.T) {
+	f := newCustomsFixture(t)
+	_, err := tClient.Entity.UpdateOneID(f.lamp).SetDescription("**Brass**,\r\nwith shade").Save(f.ctx)
+	require.NoError(t, err)
+	req := f.request(f.clock, f.lamp)
+	req.Options.IncludeReceipts = false
+	file, err := customsService().Export(f.ctx, req)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	require.NoError(t, file.Write(&buf))
+	x, err := excelize.OpenReader(&buf)
+	require.NoError(t, err)
+	defer func() { _ = x.Close() }()
+	rows, err := x.GetRows(customsinventory.SheetName)
+	require.NoError(t, err)
+	// ref returns the cell in column col of the row whose name (column C) is name.
+	ref := func(name, col string) string {
+		t.Helper()
+		for i, row := range rows {
+			if len(row) > 2 && row[2] == name {
+				return fmt.Sprintf("%s%d", col, i+1)
+			}
+		}
+		t.Fatalf("no row for %q", name)
+		return ""
+	}
+	cell := func(name, col string) string {
+		t.Helper()
+		v, err := x.GetCellValue(customsinventory.SheetName, ref(name, col))
+		require.NoError(t, err)
+		return v
+	}
+
+	assert.Equal(t, "Brass,\nwith shade", cell("Old lamp", "K"))
+	runs, err := x.GetCellRichText(customsinventory.SheetName, ref("Old lamp", "K"))
+	require.NoError(t, err)
+	require.NotEmpty(t, runs)
+	assert.Equal(t, "Brass", runs[0].Text)
+	require.NotNil(t, runs[0].Font)
+	assert.True(t, runs[0].Font.Bold)
+	assert.Equal(t, "zollfrei lt. Tag „owned > 2 years“", cell("Old lamp", "L"))
+
+	assert.Empty(t, cell("Grandfather clock", "K"))
+	assert.Empty(t, cell("Grandfather clock", "L"))
 }
 
 func TestCustomsInventory_ScopeTooLarge(t *testing.T) {

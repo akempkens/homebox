@@ -354,6 +354,7 @@ func toCustomsItem(e repo.EntityOut, locationPath []string) customsinventory.Ite
 		ID:            e.ID,
 		AssetID:       int64(e.AssetID),
 		Name:          e.Name,
+		Description:   e.Description,
 		Archived:      e.Archived,
 		SoldDate:      e.SoldDate,
 		SoldPrice:     e.SoldPrice,
