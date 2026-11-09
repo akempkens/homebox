@@ -47,12 +47,13 @@ func tokenizeMarkup(line string) []mark {
 		}
 	}
 	for i := 0; i < len(line); {
+		escaped := i > 0 && line[i-1] == '\\' // a backslash keeps any marker plain
 		switch {
-		case hasPrefixFold(line[i:], "<u>"):
+		case !escaped && hasPrefixFold(line[i:], "<u>"):
 			flush()
 			marks = append(marks, mark{kind: markUOpen, text: line[i : i+3]})
 			i += 3
-		case hasPrefixFold(line[i:], "</u>"):
+		case !escaped && hasPrefixFold(line[i:], "</u>"):
 			flush()
 			marks = append(marks, mark{kind: markUClose, text: line[i : i+4]})
 			i += 4
@@ -61,7 +62,7 @@ func tokenizeMarkup(line string) []mark {
 			for j < len(line) && line[j] == line[i] {
 				j++
 			}
-			if j-i > 3 || (i > 0 && line[i-1] == '\\') {
+			if j-i > 3 || escaped {
 				text.WriteString(line[i:j]) // plain text
 			} else {
 				flush()

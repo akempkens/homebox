@@ -40,6 +40,8 @@ func TestParseMarkup(t *testing.T) {
 		{"****x****", []span{p("****x****")}},
 		{"<u>open only", []span{p("<u>open only")}},
 		{"**a _b** c_", []span{b("a _b"), p(" c_")}},
+		{"\\<u>x</u>", []span{p("\\<u>x</u>")}},
+		{"<u>a\\</u>", []span{p("<u>a\\</u>")}},
 	} {
 		assert.Equal(t, tc.want, parseMarkup(tc.in), "%q", tc.in)
 	}
