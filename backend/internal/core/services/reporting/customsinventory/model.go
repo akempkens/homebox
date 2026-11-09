@@ -268,6 +268,7 @@ type Item struct {
 	ParentID       uuid.UUID // the parent entity (an item or a location), or uuid.Nil
 	AssetID        int64
 	Name           string
+	Description    string
 	EntityTypeID   uuid.UUID
 	EntityTypeName string
 	IsLocation     bool
@@ -348,7 +349,8 @@ type Line struct {
 	HasPrice         bool
 	LineCents        int64 // LineCents(Quantity, UnitCents)
 	ReceiptNames     []string
-	Comments         []string
+	Descriptions     []string // column K (FR-47), markup kept
+	ProcessComments  []string // column L (FR-48)
 	Status           Status
 	Reason           Reason
 	MemberIDs        []uuid.UUID

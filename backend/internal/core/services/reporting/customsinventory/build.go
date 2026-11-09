@@ -25,6 +25,7 @@ type entry struct {
 	receiptNames []string     // ZIP names, parallel to receipts; empty when receipts are off
 	links        []Attachment
 	comment      string
+	description  string // cleanDescription(it.Description)
 
 	// Contents (FR-27 to FR-36). Without RollUpContents, parent and owner
 	// stay nil and lineUnitCents equals unitCents.
@@ -243,12 +244,13 @@ func exclusion(it Item, found bool, ref types.Date) (IssueCode, bool) {
 // values and the comment follow once parents are linked.
 func newEntry(it Item, receiptTypes []string) *entry {
 	e := &entry{
-		it:         it,
-		name:       normalizeName(it.Name),
-		firstWord:  FirstWord(it.Name),
-		unitCents:  ToCents(it.PurchasePrice),
-		location:   strings.Join(it.LocationPath, " › "),
-		assetLabel: assetLabel(it),
+		it:          it,
+		name:        normalizeName(it.Name),
+		firstWord:   FirstWord(it.Name),
+		unitCents:   ToCents(it.PurchasePrice),
+		location:    strings.Join(it.LocationPath, " › "),
+		assetLabel:  assetLabel(it),
+		description: cleanDescription(it.Description),
 	}
 
 	for _, a := range it.Attachments {
@@ -265,6 +267,20 @@ func newEntry(it Item, receiptTypes []string) *entry {
 		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), strings.Compare(a.ID.String(), b.ID.String()))
 	})
 	return e
+}
+
+// cleanDescription keeps the line breaks of a description and collapses the
+// spaces and tabs within each line. Empty lines are dropped (FR-47).
+func cleanDescription(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	var lines []string
+	for _, l := range strings.Split(s, "\n") {
+		if l = strings.Join(strings.Fields(l), " "); l != "" {
+			lines = append(lines, l)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // entryComment joins the reason, a missing value and, for a member inside
@@ -495,11 +511,12 @@ func lineFrom(members []*entry, firstWord bool) Line {
 		l.MemberQuantities = append(l.MemberQuantities, m.it.Quantity)
 		l.MemberOwnCents = append(l.MemberOwnCents, m.unitCents)
 		l.Locations = appendUnique(l.Locations, m.location)
-		l.Comments = appendUnique(l.Comments, m.comment)
+		l.ProcessComments = appendUnique(l.ProcessComments, m.comment)
+		l.Descriptions = appendUnique(l.Descriptions, m.description)
 		l.ReceiptNames = append(l.ReceiptNames, m.receiptNames...)
 		for _, c := range m.contents {
 			l.Contents = append(l.Contents, Content{ID: c.it.ID, OwnerID: m.it.ID, Quantity: c.it.Quantity, UnitCents: c.unitCents})
-			l.Comments = appendUnique(l.Comments, c.comment)
+			l.ProcessComments = appendUnique(l.ProcessComments, c.comment)
 			l.ReceiptNames = append(l.ReceiptNames, c.receiptNames...)
 			contentQty += c.it.Quantity
 		}
@@ -511,7 +528,7 @@ func lineFrom(members []*entry, firstWord bool) Line {
 		}
 	}
 	if len(l.Contents) > 0 {
-		l.Comments = append(l.Comments, contentsLabel(contentQty))
+		l.ProcessComments = append(l.ProcessComments, contentsLabel(contentQty))
 	}
 	l.Quantity = RoundQty(qty)
 	l.LineCents = LineCents(l.Quantity, l.UnitCents)

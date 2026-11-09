@@ -33,7 +33,8 @@
           "HasPrice": true,
           "LineCents": 35800,
           "ReceiptNames": null,
-          "Comments": null,
+          "Descriptions": null,
+          "ProcessComments": null,
           "Status": "dutyFree",
           "Reason": "date",
           "MemberIDs": [
@@ -66,7 +67,8 @@
           "ReceiptNames": [
             "Belege/000-101_Rechnung.pdf"
           ],
-          "Comments": null,
+          "Descriptions": null,
+          "ProcessComments": null,
           "Status": "dutyFree",
           "Reason": "date",
           "MemberIDs": [
@@ -97,7 +99,8 @@
           "HasPrice": true,
           "LineCents": 89000,
           "ReceiptNames": null,
-          "Comments": null,
+          "Descriptions": null,
+          "ProcessComments": null,
           "Status": "dutyFree",
           "Reason": "date",
           "MemberIDs": [
@@ -148,7 +151,8 @@
           "HasPrice": false,
           "LineCents": 0,
           "ReceiptNames": null,
-          "Comments": [
+          "Descriptions": null,
+          "ProcessComments": [
             "zollfrei lt. Tag „owned \u003e 2 years“; Wert fehlt"
           ],
           "Status": "dutyFree",
@@ -220,7 +224,8 @@
           "HasPrice": true,
           "LineCents": 500,
           "ReceiptNames": null,
-          "Comments": [
+          "Descriptions": null,
+          "ProcessComments": [
             "zollfrei lt. Tag „owned \u003e 2 years“"
           ],
           "Status": "dutyFree",
@@ -253,7 +258,8 @@
           "HasPrice": true,
           "LineCents": 83,
           "ReceiptNames": null,
-          "Comments": null,
+          "Descriptions": null,
+          "ProcessComments": null,
           "Status": "dutyFree",
           "Reason": "date",
           "MemberIDs": [
@@ -287,7 +293,8 @@
           "HasPrice": true,
           "LineCents": 3000,
           "ReceiptNames": null,
-          "Comments": null,
+          "Descriptions": null,
+          "ProcessComments": null,
           "Status": "dutyFree",
           "Reason": "date",
           "MemberIDs": [
@@ -324,7 +331,8 @@
       "HasPrice": false,
       "LineCents": 0,
       "ReceiptNames": null,
-      "Comments": [
+      "Descriptions": null,
+      "ProcessComments": [
         "zu verzollen lt. Tag „dutiable“; Wert fehlt"
       ],
       "Status": "dutiable",
@@ -357,7 +365,8 @@
       "HasPrice": false,
       "LineCents": 0,
       "ReceiptNames": null,
-      "Comments": [
+      "Descriptions": null,
+      "ProcessComments": [
         "Kauf nach Referenzdatum; Wert fehlt"
       ],
       "Status": "dutiable",
@@ -393,7 +402,8 @@
         "Belege/000-146_Rechnung.pdf",
         "Belege/000-146_Rechnung_2.jpg"
       ],
-      "Comments": [
+      "Descriptions": null,
+      "ProcessComments": [
         "Kauf nach Stichtag (\u003c 6 Monate)"
       ],
       "Status": "dutiable",
@@ -428,7 +438,8 @@
       "ReceiptNames": [
         "Belege/000-163_b_Rechnung.pdf"
       ],
-      "Comments": [
+      "Descriptions": null,
+      "ProcessComments": [
         "Kauf nach Stichtag (\u003c 6 Monate)"
       ],
       "Status": "dutiable",
@@ -463,7 +474,8 @@
       "ReceiptNames": [
         "Belege/000-163_Rechnung.pdf"
       ],
-      "Comments": [
+      "Descriptions": null,
+      "ProcessComments": [
         "Kauf nach Stichtag (\u003c 6 Monate)"
       ],
       "Status": "dutiable",
@@ -496,7 +508,8 @@
       "HasPrice": false,
       "LineCents": 0,
       "ReceiptNames": null,
-      "Comments": [
+      "Descriptions": null,
+      "ProcessComments": [
         "Kaufdatum fehlt; Wert fehlt"
       ],
       "Status": "dutiable",
