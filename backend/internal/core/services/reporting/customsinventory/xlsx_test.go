@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,12 +39,14 @@ func testReport() Report {
 						Pos: 1, Quantity: 4, Name: "Dining chair", EntityTypeName: typeNameFurniture,
 						Locations: []string{"Home › Living room"}, AssetIDs: []string{"000-103"},
 						PurchaseDate: d("2020-05-01"), UnitCents: 8950, HasPrice: true, LineCents: 35800,
-						Status: StatusDutyFree, Reason: ReasonDate,
+						Descriptions: []string{"=SUM(A1:A9)"},
+						Status:       StatusDutyFree, Reason: ReasonDate,
 					},
 					{
 						Pos: 2, Quantity: 14, Name: nameFiles, EntityTypeName: "Box",
 						Locations: []string{"Home › Living room"}, AssetIDs: []string{"000-131", "000-132"},
 						PurchaseDateText: "2019-01-01 – 2021-06-30",
+						Descriptions:     []string{"**Oak** case\nmade <u>1890</u>", "_old_"},
 						ProcessComments:  []string{"zollfrei lt. Tag „owned > 2 years“; Wert fehlt"},
 						Status:           StatusDutyFree, Reason: ReasonTagDutyFree,
 					},
@@ -57,7 +61,8 @@ func testReport() Report {
 						Pos: 3, Quantity: 2.5, Name: "Shelf", EntityTypeName: typeNameFurniture,
 						Locations: []string{"-"}, AssetIDs: []string{"000-110"},
 						PurchaseDate: d("2020-01-01"), UnitCents: 33, HasPrice: true, LineCents: 83,
-						Status: StatusDutyFree, Reason: ReasonDate,
+						Descriptions: []string{"**=1+1**"},
+						Status:       StatusDutyFree, Reason: ReasonDate,
 					},
 				},
 				SubtotalCents: 83,
@@ -70,6 +75,7 @@ func testReport() Report {
 				Locations: []string{"Home › Kitchen"}, AssetIDs: []string{"000-146"},
 				PurchaseDate: d("2026-09-02"), UnitCents: 64990, HasPrice: true, LineCents: 64990,
 				ReceiptNames:    []string{"Belege/000-146_Rechnung.pdf", "Belege/000-146_Rechnung_2.jpg"},
+				Descriptions:    []string{"Dual boiler", "Black"},
 				ProcessComments: []string{"Kauf nach Stichtag (< 6 Monate)"},
 				Status:          StatusDutiable, Reason: ReasonOwnedTooShort,
 			},
@@ -155,6 +161,12 @@ func TestWriteXLSX_LayoutAndLabels(t *testing.T) {
 	assert.Equal(t, ColumnHeaders("EUR"), rows[7])
 	assert.Equal(t, "Einzelwert / unit value EUR", ColumnHeaders("EUR")[7])
 	assert.Equal(t, "Wiederbeschaffungswert / replacement value EUR", ColumnHeaders("EUR")[8])
+	require.Len(t, ColumnHeaders("EUR"), 12)
+	assert.Equal(t, "Bemerkungen / comments", ColumnHeaders("EUR")[10])
+	assert.Equal(t, "Prozesshinweise / process comments", ColumnHeaders("EUR")[11])
+	width, err := f.GetColWidth(SheetName, "L")
+	require.NoError(t, err)
+	assert.InDelta(t, 40.0, width, 0)
 
 	assert.NotZero(t, findRow(t, f, "A", LabelSubtotal))
 	assert.NotZero(t, findRow(t, f, "A", LabelDutyFreeTotal))
@@ -166,7 +178,7 @@ func TestWriteXLSX_LayoutAndLabels(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, "A1", merged[0].GetStartAxis())
-	assert.Equal(t, "K1", merged[0].GetEndAxis())
+	assert.Equal(t, "L1", merged[0].GetEndAxis())
 }
 
 func TestWriteXLSX_HeaderLeavesOutEmptyParts(t *testing.T) {
@@ -313,9 +325,12 @@ func TestWriteXLSX_QuantityTotals(t *testing.T) {
 func TestWriteXLSX_TextNeverFormula(t *testing.T) {
 	f := openXLSX(t, testReport())
 	shelf := findRow(t, f, "C", "Shelf")
+	chair := findRow(t, f, "C", "Dining chair")
 	for ref, want := range map[string]string{
 		"A2":                      `=HYPERLINK("http://x")`,
 		fmt.Sprintf("E%d", shelf): "-",
+		fmt.Sprintf("K%d", chair): "=SUM(A1:A9)", // plain description
+		fmt.Sprintf("K%d", shelf): "=1+1",        // rich-text description
 	} {
 		assert.Empty(t, formula(t, f, ref), ref)
 		assert.Equal(t, want, cell(t, f, ref), ref)
@@ -345,7 +360,98 @@ func TestWriteXLSX_CellTypes(t *testing.T) {
 
 	espresso := findRow(t, f, "C", nameEspresso)
 	assert.Equal(t, "Belege/000-146_Rechnung.pdf, Belege/000-146_Rechnung_2.jpg", cell(t, f, fmt.Sprintf("J%d", espresso)))
-	assert.Equal(t, "Kauf nach Stichtag (< 6 Monate)", cell(t, f, fmt.Sprintf("K%d", espresso)))
+	assert.Equal(t, "Dual boiler; Black", cell(t, f, fmt.Sprintf("K%d", espresso)))
+	assert.Equal(t, "Kauf nach Stichtag (< 6 Monate)", cell(t, f, fmt.Sprintf("L%d", espresso)))
+	assert.True(t, wraps(t, f, fmt.Sprintf("K%d", espresso)), "K wraps its text")
+	assert.False(t, wraps(t, f, fmt.Sprintf("L%d", espresso)), "L doesn't wrap")
+}
+
+// wraps reports whether the cell's style has wrap text on.
+func wraps(t *testing.T, f *excelize.File, ref string) bool {
+	t.Helper()
+	id, err := f.GetCellStyle(SheetName, ref)
+	require.NoError(t, err)
+	st, err := f.GetStyle(id)
+	require.NoError(t, err)
+	return st.Alignment != nil && st.Alignment.WrapText
+}
+
+func TestWriteXLSX_DescriptionRichText(t *testing.T) {
+	f := openXLSX(t, testReport())
+	ref := fmt.Sprintf("K%d", findRow(t, f, "C", nameFiles))
+	assert.Equal(t, "Oak case\nmade 1890; old", cell(t, f, ref))
+
+	runs, err := f.GetCellRichText(SheetName, ref)
+	require.NoError(t, err)
+	type run struct {
+		text                    string
+		bold, italic, underline bool
+	}
+	got := make([]run, len(runs))
+	for i, r := range runs {
+		got[i] = run{text: r.Text}
+		if r.Font != nil {
+			got[i].bold, got[i].italic, got[i].underline = r.Font.Bold, r.Font.Italic, r.Font.Underline == "single"
+		}
+	}
+	assert.Equal(t, []run{
+		{text: "Oak", bold: true},
+		{text: " case\nmade "},
+		{text: "1890", underline: true},
+		{text: "; "},
+		{text: "old", italic: true},
+	}, got)
+	for i, r := range runs {
+		if i == 1 || i == 3 {
+			assert.Nil(t, r.Font, "plain run %d has no font", i)
+		}
+	}
+}
+
+func TestWriteXLSX_LongDescriptionsCut(t *testing.T) {
+	r := testReport()
+	shelf := &r.Groups[1].Lines[0]
+	shelf.Descriptions = nil
+	for range 40 {
+		shelf.Descriptions = append(shelf.Descriptions, strings.Repeat("x", 1000))
+	}
+	shelf.ProcessComments = []string{"Wert fehlt"}
+	f := openXLSX(t, r)
+
+	row := findRow(t, f, "C", "Shelf")
+	assert.Len(t, cell(t, f, fmt.Sprintf("K%d", row)), 32767)
+	assert.Equal(t, "Wert fehlt", cell(t, f, fmt.Sprintf("L%d", row)))
+}
+
+func TestWriteXLSX_LongRichDescriptionsCut(t *testing.T) {
+	t.Run("many descriptions", func(t *testing.T) {
+		r := testReport()
+		shelf := &r.Groups[1].Lines[0]
+		shelf.Descriptions = nil
+		for n := range 40 {
+			// distinct texts, so a merged line could really hold them all
+			shelf.Descriptions = append(shelf.Descriptions, "**"+strings.Repeat(string(rune('a'+n%26)), 1000)+"**")
+		}
+		f := openXLSX(t, r)
+
+		ref := fmt.Sprintf("K%d", findRow(t, f, "C", "Shelf"))
+		assert.Len(t, cell(t, f, ref), 32767)
+		runs, err := f.GetCellRichText(SheetName, ref)
+		require.NoError(t, err)
+		require.NotEmpty(t, runs)
+		last := runs[len(runs)-1]
+		require.NotNil(t, last.Font)
+		assert.True(t, last.Font.Bold)
+	})
+	t.Run("no split surrogate pair", func(t *testing.T) {
+		r := testReport()
+		r.Groups[1].Lines[0].Descriptions = []string{"**" + strings.Repeat("😀", 20000) + "**"}
+		f := openXLSX(t, r)
+
+		k := cell(t, f, fmt.Sprintf("K%d", findRow(t, f, "C", "Shelf")))
+		assert.True(t, utf8.ValidString(k))
+		assert.Len(t, utf16.Encode([]rune(k)), 32766)
+	})
 }
 
 func TestWriteXLSX_EmptyDutiableSection(t *testing.T) {

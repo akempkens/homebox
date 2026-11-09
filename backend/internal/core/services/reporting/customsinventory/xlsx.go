@@ -2,8 +2,10 @@ package customsinventory
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -21,7 +23,7 @@ const (
 	LabelOther         = "Übrige / other"
 )
 
-// ColumnHeaders returns the headers of columns A–K.
+// ColumnHeaders returns the headers of columns A–L.
 func ColumnHeaders(currency string) []string {
 	return []string{
 		"Pos.",
@@ -35,13 +37,14 @@ func ColumnHeaders(currency string) []string {
 		"Wiederbeschaffungswert / replacement value " + currency,
 		"Beleg / receipt",
 		"Bemerkungen / comments",
+		"Prozesshinweise / process comments",
 	}
 }
 
 // maxFunctionArgs is the most arguments an Excel function takes.
 const maxFunctionArgs = 255
 
-var columnWidths = []float64{6, 10, 34, 14, 26, 18, 14, 14, 18, 34, 40}
+var columnWidths = []float64{6, 10, 34, 14, 26, 18, 14, 14, 18, 34, 40, 40}
 
 // excelEpoch is day 0 of Excel's 1900 date system. Serials counted from it
 // match Excel only from 1900-03-01 on (Excel counts a 29 Feb 1900), so
@@ -52,7 +55,7 @@ var (
 )
 
 type sheetStyles struct {
-	bold, boldQty, money, boldMoney, date int
+	bold, boldQty, money, boldMoney, date, wrap int
 }
 
 // sheetWriter writes the sheet top to bottom. The stream writer keeps each
@@ -118,8 +121,70 @@ func (w *sheetWriter) line(l Line) int {
 		unit,
 		w.money(l.LineCents, fmt.Sprintf("ROUND(B%d*H%d,2)", r, r), false),
 		text(strings.Join(l.ReceiptNames, ", ")),
+		w.descriptionCell(l.Descriptions),
 		text(strings.Join(l.ProcessComments, "; ")),
 	)
+}
+
+// descriptionCell builds column K (FR-49, FR-50): the descriptions joined by
+// "; ", their lines by "\n", with bold, italic and underline as rich text.
+// Without any formatting it's a plain string. The cell always wraps.
+func (w *sheetWriter) descriptionCell(descriptions []string) any {
+	if len(descriptions) == 0 {
+		return nil
+	}
+	var spans []span
+	for i, d := range descriptions {
+		if i > 0 {
+			spans = appendSpan(spans, span{text: "; "})
+		}
+		for j, line := range strings.Split(d, "\n") {
+			if j > 0 {
+				spans = appendSpan(spans, span{text: "\n"})
+			}
+			for _, s := range parseMarkup(line) {
+				spans = appendSpan(spans, s)
+			}
+		}
+	}
+	formatted := false
+	var plain strings.Builder
+	runs := make([]excelize.RichTextRun, 0, len(spans))
+	for _, s := range spans {
+		plain.WriteString(s.text)
+		run := excelize.RichTextRun{Text: s.text}
+		if s.bold || s.italic || s.underline {
+			formatted = true
+			run.Font = &excelize.Font{Bold: s.bold, Italic: s.italic}
+			if s.underline {
+				run.Font.Underline = "single"
+			}
+		}
+		runs = append(runs, run)
+	}
+	if !formatted {
+		return excelize.Cell{StyleID: w.st.wrap, Value: plain.String()} // the library cuts it at the cell limit
+	}
+	return excelize.Cell{StyleID: w.st.wrap, Value: cutRuns(runs, excelize.TotalCellChars)}
+}
+
+// cutRuns keeps at most limit UTF-16 units of the runs, cutting at a rune
+// boundary. The library refuses longer rich text instead of cutting it.
+func cutRuns(runs []excelize.RichTextRun, limit int) []excelize.RichTextRun {
+	total := 0
+	for i, r := range runs {
+		for j, c := range r.Text {
+			if total += utf16.RuneLen(c); total > limit {
+				out := slices.Clone(runs[:i])
+				if j > 0 {
+					r.Text = r.Text[:j]
+					out = append(out, r)
+				}
+				return out
+			}
+		}
+	}
+	return runs
 }
 
 func (w *sheetWriter) bold(s string) excelize.Cell {
@@ -172,6 +237,7 @@ func newStyles(f *excelize.File) (sheetStyles, error) {
 		{&st.money, excelize.Style{NumFmt: moneyFmt}},
 		{&st.boldMoney, excelize.Style{NumFmt: moneyFmt, Font: &excelize.Font{Bold: true}}},
 		{&st.date, excelize.Style{CustomNumFmt: &dateFmt}},
+		{&st.wrap, excelize.Style{Alignment: &excelize.Alignment{WrapText: true}}},
 	} {
 		id, err := f.NewStyle(&s.style)
 		if err != nil {
@@ -284,7 +350,7 @@ func WriteXLSX(r Report) ([]byte, error) {
 	if w.err != nil {
 		return nil, w.err
 	}
-	if err := sw.MergeCell("A1", "K1"); err != nil {
+	if err := sw.MergeCell("A1", "L1"); err != nil {
 		return nil, err
 	}
 	if err := sw.Flush(); err != nil {
